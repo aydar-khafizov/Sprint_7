@@ -21,3 +21,14 @@ order_both = {**base_order, "color": ["BLACK", "GREY"]}
 
 # 4. Заказ без указания цвета
 order_no_color = {**base_order}
+
+
+# Классы с константами для сообщений об ошибках
+class CourierErrors:
+    DUPLICATE_LOGIN = "Этот логин уже используется. Попробуйте другой."
+    MISSING_FIELDS = "Недостаточно данных для создания учетной записи"
+
+
+class LoginErrors:
+    USER_NOT_FOUND = "Учетная запись не найдена"
+    LOGIN_DATA_MISSING = "Недостаточно данных для входа"

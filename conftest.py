@@ -1,33 +1,76 @@
 import pytest
-import requests
 from urls import Urls
-from helpers import generate_random_string
+from helpers import (
+    generate_random_string, 
+    create_courier, 
+    login_courier, 
+    delete_courier,
+    cancel_order
+)
 
 
 @pytest.fixture
 def courier():
-    """Фикстура создаёт уникального курьера и удаляет его после теста."""
-    # 1. Генерируем уникальные данные для нового курьера
+    """Фикстура создаёт уникального курьера ДО теста и удаляет его ПОСЛЕ."""
     courier_data = {
         "login": generate_random_string(),
         "password": generate_random_string(),
         "firstName": generate_random_string(6)
     }
 
-    # 2. Создаём курьера
-    response = requests.post(Urls.CREATE_COURIER_URL, json=courier_data)
+    # Создаём курьера (запрос обернут в allure.step внутри helpers)
+    response = create_courier(courier_data)
 
-    # 3. Отдаём данные и ответ тесту (всё, что до yield - это setup)
+    # Отдаём данные и ответ тесту
     yield courier_data, response
 
-    # 4. Всё, что после yield - это teardown (уборка после теста)
-    # Авторизуемся, чтобы получить id созданного курьера
-    login_response = requests.post(Urls.LOGIN_COURIER_URL, json={
+    # Уборка после теста
+    login_response = login_courier({
         "login": courier_data["login"],
         "password": courier_data["password"]
     })
     
-    # Если авторизация прошла успешно (код 200) и в ответе есть id - удаляем курьера
     if login_response.status_code == 200 and "id" in login_response.json():
         courier_id = login_response.json()["id"]
-        requests.delete(f"{Urls.CREATE_COURIER_URL}/{courier_id}")
+        delete_courier(courier_id)
+
+
+@pytest.fixture
+def courier_data_for_creation():
+    """
+    Фикстура генерирует данные для курьера, НЕ создавая его.
+    После теста проверяет, был ли он создан, и если да — удаляет.
+    """
+    courier_data = {
+        "login": generate_random_string(),
+        "password": generate_random_string(),
+        "firstName": generate_random_string(6)
+    }
+    
+    yield courier_data  # Отдаём тесту только словарь с данными
+    
+    # Уборка после теста (сработает, если тест успешно создал курьера)
+    login_response = login_courier({
+        "login": courier_data["login"],
+        "password": courier_data["password"]
+    })
+    
+    if login_response.status_code == 200 and "id" in login_response.json():
+        courier_id = login_response.json()["id"]
+        delete_courier(courier_id)
+
+
+@pytest.fixture
+def order_tracker():
+    """
+    Фикстура для отслеживания созданных заказов.
+    Возвращает пустой список, в который тест добавляет track.
+    После теста отменяет все заказы из этого списка.
+    """
+    created_orders = []
+    
+    yield created_orders  # Отдаем пустой список тесту
+    
+    # Уборка после теста: отменяем все заказы, которые были созданы
+    for track in created_orders:
+        cancel_order(track)

@@ -1,7 +1,6 @@
 import allure
 import pytest
-import requests
-from urls import Urls
+from helpers import create_order
 from data.data import order_black, order_gray, order_both, order_no_color
 
 
@@ -14,15 +13,12 @@ class TestCreateOrder:
         [order_black, order_gray, order_both, order_no_color],
         ids=["BLACK", "GREY", "BLACK_AND_GREY", "NO_COLOR"]
     )
-    def test_create_order_success(self, order_data):
-        # 1. Создаем заказ
-        response = requests.post(Urls.ORDER_URL, json=order_data)
+    def test_create_order_success(self, order_data, order_tracker):
+        response = create_order(order_data)
         
-        # 2. Проверяем код ответа и наличие track
         assert response.status_code == 201
         response_json = response.json()
         assert "track" in response_json
         
-        # 3. Очистка: отменяем заказ, чтобы не засорять базу
-        track = response_json["track"]
-        requests.put(f"{Urls.ORDER_URL}/cancel", params={"track": track})
+        # Передаем track в фикстуру для последующей отмены
+        order_tracker.append(response_json["track"])
